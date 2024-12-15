@@ -1,7 +1,6 @@
 import os
 import sys
 import shutil
-import hashlib
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
@@ -38,6 +37,21 @@ def format_date(date_str):
     except ValueError:
         return None
 
+def files_are_identical(file1, file2):
+    """Compare two files by size and content."""
+    if os.path.getsize(file1) != os.path.getsize(file2):
+        return False
+
+    # Compare content byte-by-byte
+    with open(file1, "rb") as f1, open(file2, "rb") as f2:
+        while True:
+            b1 = f1.read(8192)
+            b2 = f2.read(8192)
+            if b1 != b2:
+                return False
+            if not b1:  # End of file
+                return True
+
 def generate_unique_filename(base_name, ext, dest_dir, source_file):
     """Generate a unique filename to avoid collisions."""
     counter = 1
@@ -45,7 +59,7 @@ def generate_unique_filename(base_name, ext, dest_dir, source_file):
     dest_path = dest_dir / unique_name
 
     while dest_path.exists():
-        # Compare checksums
+        # Compare files to see if they are identical
         if dest_path.is_file() and files_are_identical(dest_path, source_file):
             print(f"Duplicate file detected (identical): {source_file} -> {dest_path}. Skipping.")
             return None
@@ -55,18 +69,6 @@ def generate_unique_filename(base_name, ext, dest_dir, source_file):
         counter += 1
 
     return dest_path
-
-def files_are_identical(file1, file2):
-    """Compare file checksums to determine if they are identical."""
-    return get_checksum(file1) == get_checksum(file2)
-
-def get_checksum(file_path, chunk_size=8192):
-    """Calculate MD5 checksum of a file."""
-    hash_md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
 
 def process_file(file_path, dest_dir):
     """Process a single file: copy to destination with organized structure."""
