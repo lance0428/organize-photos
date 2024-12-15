@@ -4,23 +4,31 @@ import shutil
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from subprocess import run, PIPE
+from PIL import Image
 
 def get_exif_date(file_path):
-    """Extract the best date from EXIF metadata in order of priority."""
-    date_fields = ["CreateDate", "DateTimeDigitized", "CreationDate"]
-    for field in date_fields:
-        result = run(["exiftool", f"-{field}", "-d", "%Y-%m-%d %H:%M:%S", "-s3", file_path],
-                     stdout=PIPE, stderr=PIPE, text=True)
-        date = result.stdout.strip()
-        if date:
-            return date
+    """Extract the best date from EXIF metadata using Pillow."""
+    try:
+        img = Image.open(file_path)
+        exif_data = img._getexif()
+        if not exif_data:
+            return None
+
+        # Common EXIF date tag IDs
+        date_tags = [36867, 36868, 306]  # DateTimeOriginal, DateTimeDigitized, DateTime
+
+        for tag_id in date_tags:
+            date_str = exif_data.get(tag_id)
+            if date_str:
+                return date_str
+    except Exception as e:
+        print(f"Error reading EXIF data from {file_path}: {e}")
     return None
 
 def format_date(date_str):
     """Format date string into the desired format."""
     try:
-        date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        date = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
         return {
             "year": date.strftime("%Y"),
             "month": date.strftime("%m"),
